@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+venv/
+
+data_preprocess/maestro-v3.0.0/
+
+
 # C extensions
 *.so
 
