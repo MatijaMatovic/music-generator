@@ -1,10 +1,19 @@
 import pypianoroll as pianoroll
 import glob
 import torch
-from torch.utils.data import DataLoader,Dataset 
+from torch.utils.data import DataLoader,Dataset
+
+import sys
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+from music21 import *
+
+
 import numpy as np
 PATH = '..\\data_preprocess\\maestro-v3.0.0\\'
-FILES = '*\\*.midi'
+FILES = '2004\\*.midi'
 
 def load_midi_files(path, compress = False):
     """
@@ -86,3 +95,85 @@ def get_loader():
     dataset = MidiDataset(dataset, len_array, seq_length = 16)
     loader = DataLoader(dataset, batch_size = 64, drop_last=True)
     return loader
+
+
+
+class Midi_RNN():
+    def __init__(self, seq_length):
+        self.seq_length = seq_length
+        self.file_notes = []
+        self.trainseq = []
+        self.transfer_dict = dict()
+        self.dict_n = 0
+    def parser(self, folder_name):
+        """
+        get the notes and chord from Midi files
+        """
+        for file in glob.glob(folder_name):
+            midi = converter.parse(file)
+
+            print(f'Parsing {file}.....')
+
+            notes = []
+            for element in midi.flat.elements:
+                if isinstance(element, note.Rest) and element.offset != 0:
+                    notes.append(f'R|{float(element.duration.quarterLength)}')
+                if isinstance(element, note.Note):
+                    notes.append(f'{str(element.pitch)}|{float(element.duration.quarterLength)}')
+                if isinstance(element, chord.Chord):
+                    temp = (','.join(str(p) + '|' + str(float(element.duration.quarterLength)) for p, n in zip(element.pitches, element.notes)))
+                    notes.append(temp)
+            self.file_notes.append(notes)
+        note_set = sorted(set(n for notes in self.file_notes for n in notes))
+        self.dict_n = len(note_set)
+        self.transfer_dict = dict((n, number) for number, n in enumerate(note_set))
+
+    def prepare_sequence(self):
+        """
+        Preps the sequence for the NN
+        """
+        for notes in self.file_notes:
+            for i in range(len(notes) - self.seq_length):
+                self.trainseq.append([self.transfer_dict[n] for n in notes[i:i + self.seq_length]])
+        self.trainseq = np.array(self.trainseq)
+        self.trainseq = (self.trainseq - float(self.dict_n) / 2) / (float(self.dict_n) / 2) # normalizing features to 0 - 1 range
+
+        return self.trainseq
+
+    def create_midi(self, predicition_output, filename):
+        """
+        create a Midi file from the prediction of the NN
+        """
+        offset = 0
+        midi_stream = stream.Stream()
+
+        for pattern in predicition_output:
+            if 'R' in pattern:
+                _, quarter_len = pattern.split('|')
+                n = note.Rest()
+                n.quarterLength = float(quarter_len)
+                midi_stream.append(n)
+            elif ',' in pattern:
+                val_quarter_array = pattern.split(',')
+                notes = []
+                for elem in val_quarter_array:
+                    val, quarter_len = elem.split('|')
+                    n = note.Note(val)
+                    n.quarterLength = float(quarter_len)
+                    n.storedInstrument = instrument.Piano()
+                    notes.append(n)
+                c = chord.Chord(notes)
+                #c.offset = offset
+                midi_stream.append(c)
+            else:
+                val, quarter_len = pattern.split('|')
+                n = note.Note(val)
+                n.quarterLength = float(quarter_len)
+                n.storedInstrument = instrument.Piano()
+                midi_stream.append(n)
+
+            # offset update
+
+
+        midi_stream.write('midi', fp=f'{filename}.mid')
+
