@@ -1,5 +1,3 @@
-
-
 from data_preprocess.data_prep import Midi_RNN
 
 midi_rnn = Midi_RNN(seq_length=16)
@@ -9,3 +7,4 @@ midi_rnn.parser("C:\\FAKS\MASTER\\Neuronske mreze\\music-generator\\data_preproc
 print(midi_rnn.file_notes)
 
 midi_rnn.create_midi(midi_rnn.file_notes[0], 'midi_result')
+
