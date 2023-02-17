@@ -266,18 +266,22 @@ def read_abc(path):
 
     return keys, notes
 
+
 def collate_function(batch):
     features = [i["features"] for i in batch]
     target = [i["target"] for i in batch]
 
-    feature_lens = [len(i) for i in features]
+    features_lens = [len(i) for i in features]
     target_lens = [len(i) for i in target]
 
-    max_feature_len = max(feature_lens)
+    max_features_len = max(features_lens)
     max_target_len = max(target_lens)
 
-    feature_mask = torch.tensor([[1] * l + [0] * (max_feature_len - 1) for l in feature_lens], dtype=torch.bool)
-    target_mask = torch.tensor([[1] * l + [0]*(max_target_len - 1) for l in target_lens], dtype=torch.bool)
+    features_mask = torch.tensor([[1] * l + [0] * (max_features_len - l) for l in features_lens],
+                                 dtype=torch.bool)
+
+    target_mask = torch.tensor([[1] * l + [0] * (max_target_len - l) for l in target_lens],
+                               dtype=torch.bool)
 
     features_padded = pad_sequence(features, batch_first=True)
     target_padded = pad_sequence(target, batch_first=True)
@@ -285,7 +289,7 @@ def collate_function(batch):
     return {"input_ids": features_padded,
             "decoder_input_ids": target_padded,
             "labels": target_padded,
-            "attention_mask": feature_mask,
+            "attention_mask": features_mask,
             "decoder_attention_mask": target_mask}
 
 def bars_similarity(bar1, bar2):
