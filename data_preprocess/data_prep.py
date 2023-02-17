@@ -299,8 +299,8 @@ class MidiDatasetSequential(Dataset):
         return self.songs[song_index][seq_start:seq_end]
 
 
-def get_sequential_loader():
+def get_sequential_loader(batch_size=32, seq_length=32):
     dataset, len_array = load_sequential_midi_files(PATH)
-    dataset = MidiDatasetSequential(dataset, len_array, seq_length=32)
-    loader = DataLoader(dataset, batch_size=32, drop_last=True)
+    dataset = MidiDatasetSequential(dataset, len_array, seq_length=seq_length)
+    loader = DataLoader(dataset, batch_size=batch_size, drop_last=True)
     return loader
