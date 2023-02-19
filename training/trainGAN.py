@@ -1,20 +1,8 @@
 from datetime import datetime
-import json
-import os
-import pathlib
-import random
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torchvision.transforms as transforms
-from IPython.display import HTML, display
-from torch.utils.data import DataLoader, TensorDataset
-from torchvision.datasets import ImageFolder
-from torchvision.utils import make_grid
 
 from models.DCGAN import DiscConvNet, GenConvNet
 from data_preprocess.data_prep import get_loader
@@ -44,16 +32,7 @@ def weights_init(m):
 
 
 def progress(batch, loss, batches):
-    return HTML("""
-        <label for="file">Training loss: {loss}</label>
-        <progress
-            value='{batch}'
-            max='{batches}',
-            style='width: 100%'
-        >
-            {batch}
-        </progress>
-    """.format(loss=loss, batch=batch, batches=batches))
+    return f'Training done {batch/batches}%. Current running loss: {loss}'
 
 
 def sigmoid_cross_entropy_with_logits(inputs, labels):
@@ -132,7 +111,7 @@ def train_full_GAN(gen, disc,
             gen_losses.append(gen_loss.item())
             disc_losses.append(disc_loss.item())
 
-            #progress_bar.update(progress(steps, (gen_losses[-1], disc_losses[-1]), max_steps))
+            print(progress(steps, (gen_losses[-1], disc_losses[-1]), max_steps))
             steps += 1
 
         ### Visualize the fake images
