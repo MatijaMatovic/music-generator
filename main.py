@@ -1,5 +1,3 @@
-
-
 from data_preprocess.data_prep import Midi_RNN, load_midi_sequentially, create_midi_from_sequential_notes
 
 midi_rnn = Midi_RNN(seq_length=16)
