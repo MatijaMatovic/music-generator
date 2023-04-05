@@ -19,8 +19,8 @@ G_LRN_RATE = 0.001
 D_LRN_RATE = 0.001
 MAX_GRAD_NORM = 5.
 
-NOTE_FEATURES = 4
-MAX_SEQ_LEN = 32
+NOTE_FEATURES = 3
+MAX_SEQ_LEN = 64
 BATCH_SIZE = 32
 
 EPSILON = 1e-40  # to approximate zero, to prevent undefined results
@@ -93,17 +93,18 @@ def run_training(gen, disc, optimizer, criterion, data_loader, num_epochs=100,
         if d_pretraining: d_pretraining_epochs -= 1
 
         for i, sequence_batch in enumerate(data_loader):
+            batch_size = sequence_batch.shape[0]
 
             # Each bach is independent (not a continuation of previous batch)
             # so we reset states for each batch
             # TODO: zameniti BATCH_SIZE sa sequence.shape[?]
-            g_states = gen.init_hidden(BATCH_SIZE)
-            d_states = disc.init_hidden(BATCH_SIZE)
+            g_states = gen.init_hidden(batch_size)
+            d_states = disc.init_hidden(batch_size)
 
             if not freeze_g:
                 optimizer['g'].zero_grad()
 
-            z = torch.rand((BATCH_SIZE, MAX_SEQ_LEN, NOTE_FEATURES))  # random inputs for generator
+            z = torch.rand((batch_size, MAX_SEQ_LEN, NOTE_FEATURES))  # random inputs for generator
 
             g_features, _ = gen(z, g_states)
 
@@ -209,24 +210,24 @@ def main(args):
 
 if __name__ == '__main__':
     ARG_PARSER = ArgumentParser()
-    ARG_PARSER.add_argument('--load_gen', action='store_false')
-    ARG_PARSER.add_argument('--load_disc', action='store_false')
+    ARG_PARSER.add_argument('--load_gen', action='store_true')
+    ARG_PARSER.add_argument('--load_disc', action='store_true')
     ARG_PARSER.add_argument('--no_save_gen', action='store_false')
     ARG_PARSER.add_argument('--no_save_disc', action='store_false')
 
     ARG_PARSER.add_argument('--num_epochs', default=500, type=int)
-    ARG_PARSER.add_argument('--seq_len', default=32, type=int)
+    ARG_PARSER.add_argument('--seq_len', default=64, type=int)
     ARG_PARSER.add_argument('--batch_size', default=32, type=int)
     ARG_PARSER.add_argument('--use_sgd', action='store_true')
     ARG_PARSER.add_argument('--g_lr', default=0.001, type=float)
     ARG_PARSER.add_argument('--d_lr', default=0.001, type=float)
 
-    ARG_PARSER.add_argument('--no_pretraining', action='store_false')
+    ARG_PARSER.add_argument('--no_pretraining', action='store_true')
     ARG_PARSER.add_argument('--g_pretraining_epochs', default=10, type=int)
     ARG_PARSER.add_argument('--d_pretraining_epochs', default=10, type=int)
-    ARG_PARSER.add_argument('--conditional_freezing', action='store_true')
-    ARG_PARSER.add_argument('--label_smoothing', action='store_true')
-    ARG_PARSER.add_argument('--feature_matching', action='store_true')
+    ARG_PARSER.add_argument('--conditional_freezing', action='store_false')
+    ARG_PARSER.add_argument('--label_smoothing', action='store_false')
+    ARG_PARSER.add_argument('--feature_matching', action='store_false')
 
     ARGS = ARG_PARSER.parse_args()
     MAX_SEQ_LEN = ARGS.seq_len

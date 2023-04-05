@@ -3,25 +3,19 @@ import glob
 import torch
 from torch.utils.data import DataLoader,Dataset
 from Levenshtein import distance
-import sys
-import os
-import matplotlib.pyplot as plt
 import numpy as np
-import pickle
 from music21 import *
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
 from tqdm import tqdm
-import random
 
 
-import numpy as np
-
-PATH = '..\\data_preprocess\\maestro-v3.0.0\\'
-FILES = '2004\\*.midi'
+PATH = '../data_preprocess/maestro-v3.0.0/'
+FILES = '2004/*.midi'
 USEABLE_KEYS = [i+":" for i in "BCDFGHIKLMmNOPQRrSsTUVWwXZ"]
 ABC_INPUT = '.\\trainset\\abc\\'
 ABC_OUTPUT_CLEAN = 'clean_abc'
+
 
 def load_midi_files(path, compress=False):
     """
@@ -43,10 +37,6 @@ def load_midi_files(path, compress=False):
     if compress:
         combined_pianorolls[combined_pianorolls > 0.2] = 1.0
     return combined_pianorolls, torch.tensor(pianorolls_lenghts)
-
-
-# _, lengths = load_midi_files(PATH)
-# print(lengths)
 
 
 class MidiDatasetConv(Dataset):
@@ -237,6 +227,7 @@ class ABCDataset(Dataset):
 
         return {"features" : ctx_tokens, "target" : tgt_tokens}
 
+
 def read_abc(path):
     keys = []
     notes = []
@@ -296,11 +287,13 @@ def collate_function(batch):
             "attention_mask": features_mask,
             "decoder_attention_mask": target_mask}
 
+
 def bars_similarity(bar1, bar2):
     distances = []
     for n1 in bar1:
         distances.append(min([distance(n1, n2) / (len(n1) + len(n2)) for n2 in bar2]))
     return sum(distances) / len(distances)
+
 
 def get_num_repeats(bars):
     num_repeats = 0
@@ -309,6 +302,7 @@ def get_num_repeats(bars):
             if i != j:
                 num_repeats += int(b1 == b2)
     return num_repeats
+
 
 def clean_abc_data():
     input_dir = Path(ABC_INPUT)
@@ -437,7 +431,7 @@ class MidiDatasetSequential(Dataset):
         self.seq_length = seq_length
         self.cum_sum = torch.cumsum(len_array, dim=0)
 
-    def __len(self):
+    def __len__(self):
         """
             Number of sequences of seq_length that all songs can be split into
         """
@@ -466,7 +460,7 @@ class MidiDatasetSequential(Dataset):
         seq_start = (note_index - mask * self.cum_sum[song_index - 1]).item()
         seq_end = seq_start + self.seq_length
         if seq_end + mask * self.cum_sum[song_index - 1] > self.cum_sum[song_index]:
-            return self.songs[song_index][-seq_end:]
+            return self.songs[song_index][-self.seq_length:]
 
         return self.songs[song_index][seq_start:seq_end]
 
@@ -476,9 +470,3 @@ def get_sequential_loader(batch_size=32, seq_length=32):
     dataset = MidiDatasetSequential(dataset, len_array, seq_length=seq_length)
     loader = DataLoader(dataset, batch_size=batch_size, drop_last=True)
     return loader
-
-def main():
-    clean_abc_data()
-
-if __name__ == "__main__":
-    main()
