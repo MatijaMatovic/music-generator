@@ -7,8 +7,8 @@ from music21 import *
 
 import numpy as np
 
-PATH = '..\\data_preprocess\\maestro-v3.0.0\\'
-FILES = '2004\\*.midi'
+PATH = '../data_preprocess/maestro-v3.0.0/'
+FILES = 'small/*.midi'
 
 
 def load_midi_files(path, compress=False):
@@ -265,7 +265,7 @@ class MidiDatasetSequential(Dataset):
         self.seq_length = seq_length
         self.cum_sum = torch.cumsum(len_array, dim=0)
 
-    def __len(self):
+    def __len__(self):
         """
             Number of sequences of seq_length that all songs can be split into
         """
@@ -286,7 +286,8 @@ class MidiDatasetSequential(Dataset):
             start of sequence in the song is: (index - cum_sum_prev % 16)
             and we take (index - cum_sum_prev % 16) * 16 as the first note of song
         """
-
+        if index == 18:
+            print('aaa')
         note_index = index * self.seq_length
         # song that indexed sequence belongs to
         song_index = (self.cum_sum > note_index).nonzero()[0, 0].item()
@@ -294,7 +295,7 @@ class MidiDatasetSequential(Dataset):
         seq_start = (note_index - mask * self.cum_sum[song_index - 1]).item()
         seq_end = seq_start + self.seq_length
         if seq_end + mask * self.cum_sum[song_index - 1] > self.cum_sum[song_index]:
-            return self.songs[song_index][-seq_end:]
+            return self.songs[song_index][-self.seq_length:]
 
         return self.songs[song_index][seq_start:seq_end]
 

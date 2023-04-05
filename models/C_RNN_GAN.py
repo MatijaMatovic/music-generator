@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 SEQUENCE_LENGTH = 5
-NOTE_FEATURES = 4
+NOTE_FEATURES = 3
 
 HIDDEN_SIZE = 6
 
@@ -17,11 +17,11 @@ class GenCRnn(nn.Module):
         # First layer according to paper
         self.fully_connected1 = nn.Linear(in_features=(2*note_features), out_features=hidden_size)
         self.relu = nn.ReLU()
-        self.lstm1 = nn.LSTM(input_size=hidden_size, hidden_size=hidden_size)
+        self.lstm1 = nn.LSTMCell(input_size=hidden_size, hidden_size=hidden_size)
         self.dropout = nn.Dropout(p=0.2)
 
         # Second layer according to paper
-        self.lstm2 = nn.LSTM(input_size=hidden_size, hidden_size=hidden_size)
+        self.lstm2 = nn.LSTMCell(input_size=hidden_size, hidden_size=hidden_size)
         self.fully_connected2 = nn.Linear(in_features=hidden_size, out_features=note_features)
 
     def forward(self, x, hidden):
@@ -29,6 +29,7 @@ class GenCRnn(nn.Module):
 
         # Split to seq_len * (batch_size, num_feats)
         # so each feature is split into batches by element
+        # because this shape is required for LSTMCell input
         x = torch.split(x, 1, dim=1)
         x = [x_step.squeeze(dim=1) for x_step in x]
 
@@ -47,7 +48,7 @@ class GenCRnn(nn.Module):
             h1, c1 = self.lstm1(out, hidden1)
             h1 = self.dropout(h1)
 
-            h2, c2 = self.lstm_cell2(h1, hidden2)
+            h2, c2 = self.lstm2(h1, hidden2)
             prev_gen = self.fully_connected2(h2)
             generated_features.append(prev_gen)
 
@@ -68,10 +69,10 @@ class GenCRnn(nn.Module):
         """
         weight = next(self.parameters()).data
 
-        initial_hidden = ((torch.zeros(batch_size, self.hidden_size, dtype=weight.dtype),
-                           torch.zeros(batch_size, self.hidden_size, dtype=weight.dtype)),
-                          (torch.zeros(batch_size, self.hidden_size, dtype=weight.dtype),
-                           torch.zeros(batch_size, self.hidden_size, dtype=weight.dtype)))
+        initial_hidden = ((weight.new(batch_size, self.hidden_size).zero_(),
+                           weight.new(batch_size, self.hidden_size).zero_()),
+                          (weight.new(batch_size, self.hidden_size).zero_(),
+                           weight.new(batch_size, self.hidden_size).zero_()))
 
         return initial_hidden
 
@@ -90,7 +91,7 @@ class DiscCRnn(nn.Module):
         self.fully_connected = nn.Linear(in_features=2*hidden_size, out_features=1)
 
     def forward(self, x, hidden):
-        drop_in = self.dropout(x)
+        drop_in = self.dropout(x).to(torch.float32)
 
         lstm_out, hidden = self.lstm(drop_in, hidden)
 
@@ -105,8 +106,12 @@ class DiscCRnn(nn.Module):
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data
-        initial_hidden = (torch.zeros((2*2, batch_size, self.hidden_size), dtype=weight.dtype),
-                  torch.zeros((2*2, batch_size, self.hidden_size), dtype=weight.dtype))
+
+        # 2*2 as first parameter. The first dimension should be D*N, where D is number of directions,
+        # that is, 1 if uni and 2 if bidirectional. N is number of layers, in this case 2 as specified by
+        # the paper
+        initial_hidden = (weight.new(2*2, batch_size, self.hidden_size).zero_(),
+                          weight.new(2*2, batch_size, self.hidden_size).zero_())
 
         return initial_hidden
 
